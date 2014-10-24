@@ -1,8 +1,15 @@
-# Necessary
+# =====================================
+# Requires
+
+# External
 typeChecker = require('typechecker')
 
 # Local
 ElementsCollection = require('./elements')
+
+
+# =====================================
+# Classes
 
 # Scripts Collection
 class ScriptsCollection extends ElementsCollection
@@ -16,8 +23,10 @@ class ScriptsCollection extends ElementsCollection
 		opts.attrs or= ''
 		if typeChecker.isArray(values)
 			values = values.slice()
-		else
+		else if values
 			values = [values]
+		else
+			values = []
 
 		# Build attrs
 		opts.attrs += """defer="defer" """  if opts.defer
@@ -40,8 +49,9 @@ class ScriptsCollection extends ElementsCollection
 						"""
 
 		# Call the super with our values
-		super(values,opts)
+		super(values, opts)
 
 
+# =====================================
 # Export
 module.exports = ScriptsCollection

@@ -1,12 +1,33 @@
-# RequirestestServer
+# =====================================
+# Requires
+
+# Standard Library
+util = require('util')
+pathUtil = require('path')
+
+# External
 superAgent = require('superagent')
 balUtil = require('bal-util')
 safefs = require('safefs')
-DocPad = require('../lib/docpad')
 {expect} = require('chai')
 joe = require('joe')
 _ = require('lodash')
-pathUtil = require('path')
+
+# Local
+DocPad = require('../lib/docpad')
+
+# =====================================
+# Test Heleprs
+
+inspect = (args...) ->
+	for arg in args
+		console.log util.inspect(arg, {colors:true})
+expectDeep = (argsActual, argsExpected) ->
+	try
+		expect(argsActual).to.deep.equal(argsExpected)
+	catch err
+		inspect 'actual:', argsActual, 'expected:', argsExpected
+		throw err
 
 # -------------------------------------
 # Configuration
@@ -20,13 +41,15 @@ expectPath = pathUtil.join(rootPath, 'out-expected')
 cliPath    = pathUtil.join(docpadPath, 'bin', 'docpad')
 
 # Params
-port = 9779
-baseUrl = "http://localhost:#{port}"
+port = 9770
+hostname = "0.0.0.0"
+baseUrl = "http://#{hostname}:#{port}"
 testWait = 1000*60*5  # five minutes
 
 # Configure DocPad
 docpadConfig =
 	port: port
+	hostname: hostname
 	rootPath: rootPath
 	logLevel: if (process.env.TRAVIS_NODE_VERSION? or '-d' in process.argv) then 7 else 5
 	skipUnsupportedPlugins: false
@@ -58,22 +81,13 @@ joe.suite 'docpad-actions', (suite,test) ->
 
 	test 'config', (done) ->
 		expected = {a:'instanceConfig', b:'instanceConfig', c:'websiteConfig'}
-
 		config = docpad.getConfig()
 		{a,b,c} = config
-		expect(
-			{a,b,c}
-		).to.deep.equal(
-			expected
-		)
+		expectDeep({a,b,c}, expected)
 
 		templateData = docpad.getTemplateData()
 		{a,b,c} = templateData
-		expect(
-			{a,b,c}
-		).to.deep.equal(
-			expected
-		)
+		expectDeep({a,b,c}, expected)
 
 		done()
 
@@ -89,6 +103,10 @@ joe.suite 'docpad-actions', (suite,test) ->
 		test 'action', (done) ->
 			docpad.action 'generate', (err) ->
 				done(err)
+
+		test 'writeSource', (done) ->
+			file = docpad.getFileAtPath('writesource.txt.eco')
+			file.writeSource(done)
 
 		suite 'results', (suite,test) ->
 			testMarkup = (key,actual,expected) ->

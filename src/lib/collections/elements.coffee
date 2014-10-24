@@ -1,8 +1,15 @@
-# Necessary
+# =====================================
+# Requires
+
+# External
 typeChecker = require('typechecker')
 
 # Local
 {Collection,Model} = require('../base')
+
+
+# =====================================
+# Classes
 
 # Elements Collection
 class ElementsCollection extends Collection
@@ -15,8 +22,10 @@ class ElementsCollection extends Collection
 		# Ensure array
 		if typeChecker.isArray(values)
 			values = values.slice()
-		else
+		else if values
 			values = [values]
+		else
+			values = []
 
 		# Convert string based array properties into html
 		for value,key in values
@@ -44,5 +53,7 @@ class ElementsCollection extends Collection
 	# Join alias toHTML for b/c
 	join: -> @toHTML()
 
+
+# =====================================
 # Export
 module.exports = ElementsCollection

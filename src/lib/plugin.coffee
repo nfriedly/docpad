@@ -1,11 +1,22 @@
+# ---------------------------------
 # Requires
+
+# External
+{extendOnClass} = require('extendonclass')
 extendr = require('extendr')
 typeChecker = require('typechecker')
 ambi = require('ambi')
 eachr = require('eachr')
 
+
+# ---------------------------------
+# Classes
+
 # Define Plugin
 class BasePlugin
+
+	# Add support for BasePlugin.extend(proto)
+	@extend: extendOnClass
 
 	# ---------------------------------
 	# Inherited
@@ -124,7 +135,9 @@ class BasePlugin
 			if typeChecker.isFunction(eventHandler)
 				# Apply the priority
 				eventHandlerPriority = pluginInstance[eventName+'Priority'] or pluginInstance.priority or null
-				eventHandler.priority = eventHandlerPriority
+				eventHandler.priority ?= eventHandlerPriority
+				eventHandler.name = "#{pluginInstance.name}: {eventName}"
+				eventHandler.name += "(priority eventHandler.priority})"  if eventHandler.priority?
 
 				# Wrap the event handler, and bind it to docpad
 				docpad
@@ -164,5 +177,6 @@ class BasePlugin
 		return @config.enabled isnt false
 
 
+# ---------------------------------
 # Export Plugin
 module.exports = BasePlugin
