@@ -9,7 +9,6 @@ build/
 components/
 bower_components/
 node_modules/
-out/
 
 
 # =====================================
