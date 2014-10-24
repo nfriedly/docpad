@@ -1,7 +1,7 @@
 {
   "title": "DocPad. Streamlined web development.",
   "name": "docpad",
-  "version": "6.54.5",
+  "version": "6.69.1",
   "description": "DocPad is a next generation web architecture that lets you create fast static websites with dynamic abilities and powerful abstractions. Write your website as files on your computer, entries in a database, or even RSS feeds and DocPad will import it, generate & render it, then output a static website for deployment anywhere or a dynamic node website for advanced server-side functionality. Use it as a module or standalone. It's purely awesome. Check it out.",
   "homepage": "http://docpad.org",
   "installUrl": "http://docpad.org/install",
@@ -13,9 +13,13 @@
   "badges": {
     "travis": true,
     "npm": true,
+    "david": true,
+    "daviddev": true,
     "gittip": "docpad",
     "flattr": "344188/balupton-on-Flattr",
-    "paypal": "QB8GQPZAH84N6"
+    "paypal": "QB8GQPZAH84N6",
+    "bitcoin": "https://coinbase.com/checkouts/9ef59f5479eec1d97d63382c9ebcb93a",
+    "wishlist": "http://amzn.com/w/2F8TXKSNAFG4V"
   },
   "keywords": [
     "document management system",
@@ -63,6 +67,7 @@
     "Aaron Powell <me@aaron-powell.com> (https://github.com/aaronpowell)",
     "Adrian Olaru <agolaru@gmail.com> (https://github.com/adrianolaru)",
     "Alex (https://github.com/amesarosh)",
+    "Alroniks (https://github.com/Alroniks)",
     "Andrew Patton <andrew@acusti.ca> (https://github.com/acusti)",
     "Ashnur (https://github.com/ashnur)",
     "Ben Barber (https://github.com/barberboy)",
@@ -73,19 +78,27 @@
     "eldios <lele@amicofigo.com> (https://github.com/eldios)",
     "Ferrari Lee <shiyung@gmail.com> (https://github.com/Ferrari)",
     "Homme Zwaagstra <hrz@geodata.soton.ac.uk> (https://github.com/homme)",
+    "kalkin (https://github.com/kalkin)",
     "Luke Hagan (https://github.com/lhagan)",
+    "mikeumus (https://github.com/mikeumus)",
     "Neil Taylor <neil.t@myplanetdigital.com> (https://github.com/neilbaylorrulez)",
+    "nfriedly (https://github.com/nfriedly)",
     "Nick Crohn <ncrohn@me.com> (https://github.com/ncrohn)",
     "Olivier Bazoud (https://github.com/obazoud)",
     "Paul Armstrong <paul@paularmstrongdesigns.com> (https://github.com/paularmstrong)",
     "pflannery (https://github.com/pflannery)",
+    "radiodario (https://github.com/radiodario)",
     "Richard A <richard@antecki.id.au> (https://github.com/rantecki)",
+    "ruemic (https://github.com/ruemic)",
     "Sorin Ionescu <sorin.ionescu@gmail.com> (https://github.com/sorin-ionescu)",
     "Stefan (https://github.com/stegrams)",
     "Sven Vetsch (https://github.com/disenchant)",
+    "timaschew (https://github.com/timaschew)",
     "Todd Anglin (https://github.com/toddanglin)",
     "ttamminen (https://github.com/ttamminen)",
+    "unframework (https://github.com/unframework)",
     "Vladislav Botvin <darkvlados@me.com> (https://github.com/darrrk)",
+    "Zearin (https://github.com/Zearin)",
     "Zhao Lei <aicoylei@gmail.com> (https://github.com/firede)"
   ],
   "bugs": {
@@ -100,44 +113,50 @@
     "npm": ">=1.2"
   },
   "dependencies": {
-    "ambi": "~2.1.6",
-    "backbone": "1.1.0",
-    "bal-util": "~2.3.2",
-    "caterpillar": "~2.0.6",
+    "ambi": "~2.2.0",
+    "backbone": "1.1.2",
+    "bal-util": "~2.4.0",
+    "caterpillar": "~2.0.7",
     "caterpillar-filter": "~2.0.3",
     "caterpillar-human": "~2.1.1",
-    "commander": "~2.0.0",
-    "cson": "~1.4.5",
+    "commander": "~2.2.0",
+    "cson": "~1.6.1",
     "eachr": "~2.0.2",
+    "encoding": "~0.1.6",
     "envfile": "~1.0.0",
-    "event-emitter-grouped": "~2.3.1",
+    "event-emitter-grouped": "~2.4.3",
     "express": "~3.4.4",
+    "extendonclass": "~1.0.1",
     "extendr": "~2.1.0",
     "extract-opts": "~2.2.0",
     "getmac": "~1.0.6",
+    "ignorefs": "~1.0.0",
+    "istextorbinary": "~1.0.0",
     "jschardet": "~1.1.0",
-    "encoding": "~0.1.6",
     "lazy-require": "~1.0.0",
-    "lodash": "~2.2.0",
+    "lodash": "~2.4.1",
     "mime": "~1.2.9",
     "progressbar": "~1.0.3",
-    "query-engine": "~1.5.3",
-    "safefs": "~3.0.4",
-    "safeps": "~2.2.9",
-    "semver": "~2.2.1",
-    "superagent": "~0.15.4",
-    "taskgroup": "~3.3.1",
+    "promptly": "~0.2.0",
+    "query-engine": "~1.5.5",
+    "safefs": "~3.1.1",
+    "safeps": "~2.2.10",
+    "semver": "~2.3.0",
+    "superagent": "~0.18.2",
+    "taskgroup": "~4.0.5",
     "typechecker": "~2.0.8",
-    "watchr": "~2.4.4",
-    "yamljs": "~0.1.4",
-    "promptly": "~0.2.0"
+    "watchr": "~2.4.11",
+    "yamljs": "~0.1.5"
+  },
+  "optionalDependencies": {
+    "longjohn": "~0.2.4"
   },
   "devDependencies": {
-    "coffee-script": "~1.6.2",
-    "chai": "~1.8.1",
-    "joe": "~1.3.2",
+    "coffee-script": "~1.8.0",
+    "chai": "~1.9.1",
+    "joe": "~1.5.0",
     "joe-reporter-console": "~1.2.1",
-    "projectz": "~0.2.6"
+    "projectz": "~0.3.15"
   },
   "directories": {
     "lib": "./out/lib"
@@ -152,5 +171,8 @@
   "scripts": {
     "test": "node ./out/test/everything-test.js"
   },
-  "main": "./out/main.js"
+  "main": "./out/main.js",
+  "cakeConfiguration": {
+    "COFFEE_SRC_PATH": "src"
+  }
 }

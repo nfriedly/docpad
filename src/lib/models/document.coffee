@@ -1,21 +1,27 @@
-# Necessary
+# =====================================
+# Requires
+
+# Standard Library
+util = require('util')
 pathUtil = require('path')
+
+# External
 extendr = require('extendr')
 eachr = require('eachr')
 {TaskGroup} = require('taskgroup')
 mime = require('mime')
 {extractOptsAndCallback} = require('extract-opts')
 
-# Optional
-CSON = null
-YAML = null
-
 # Local
 FileModel = require('./file')
 
+# Optiona
+CSON = null
+YAML = null
 
-# ---------------------------------
-# Document Model
+
+# =====================================
+# Classes
 
 class DocumentModel extends FileModel
 
@@ -75,9 +81,6 @@ class DocumentModel extends FileModel
 		# Whether or not we should render this file
 		render: true
 
-		# Whether or not this file should be re-rendered on each request
-		dynamic: false
-
 		# Whether or not we want to render single extensions
 		renderSingleExtensions: false
 	})
@@ -108,6 +111,8 @@ class DocumentModel extends FileModel
 		# Prepare
 		[opts,next] = extractOptsAndCallback(opts,next)
 		buffer = @getBuffer()
+		locale = @locale
+		filePath = @getFilePath()
 
 		# Reparse the data and extract the content
 		# With the content, fetch the new meta data, header, and body
@@ -125,26 +130,36 @@ class DocumentModel extends FileModel
 				# allow some space
 				^\s*
 
-				# discover our seperator
+				# allow potential comment characters in seperator
+				[^\n]*?
+
+				# discover our seperator characters
 				(
-					([^\s\d\w])\2{2,} # match a symbol character repeated 3 or more times
+					([^\s\d\w])  #\2
+					\2{2,}  # match the above (the first character of our seperator), 2 or more times
 				) #\1
 
-				# discover our parser
+				# discover our parser (optional)
 				(?:
-					\x20* # allow zero or more space characters, see https://github.com/jashkenas/coffee-script/issues/2668
+					\x20*  # allow zero or more space characters, see https://github.com/jashkenas/coffee-script/issues/2668
 					(
 						[a-z]+  # parser must be lowercase alpha
-					) #\3
+					)  #\3
 				)?
 
 				# discover our meta content
 				(
-					[\s\S]*? # match anything/everything lazily
+					[\s\S]*?  # match anything/everything lazily
 				) #\4
+
+				# allow potential comment characters in seperator
+				[^\n]*?
 
 				# match our seperator (the first group) exactly
 				\1
+
+				# allow potential comment characters in seperator
+				[^\n]*
 				///
 
 			# Extract Meta Data
@@ -163,18 +178,23 @@ class DocumentModel extends FileModel
 					switch parser
 						when 'cson', 'coffee', 'coffeescript', 'coffee-script', 'json'
 							CSON = require('cson')  unless CSON
-							metaDataChanges = CSON.parseSync(header)
+							metaParseResult = CSON.parseSync(header)
+							extendr.extend(metaDataChanges, metaParseResult)
 
 						when 'yaml'
 							YAML = require('yamljs')  unless YAML
-							metaDataChanges = YAML.parse(
+							metaParseResult = YAML.parse(
 								header.replace(/\t/g,'    ')  # YAML doesn't support tabs that well
 							)
+							extendr.extend(metaDataChanges, metaParseResult)
 
 						else
-							err = new Error("Unknown meta parser: #{parser}")
+							err = new Error(util.format(locale.documentMissingParserError, parser, filePath))
 							return next(err)
 				catch err
+					err = new Error(
+						util.format(locale.documentParserError, parser, filePath)+' '+locale.errorFollows+' '+(err.stack ? err.message)
+					)
 					return next(err)
 			else
 				body = content
@@ -182,7 +202,9 @@ class DocumentModel extends FileModel
 			# Incorrect encoding detection?
 			# If so, re-parse with the correct encoding conversion
 			if metaDataChanges.encoding and metaDataChanges.encoding isnt @get('encoding')
-				@set({encoding:metaDataChanges.encoding})
+				@set({
+					encoding: metaDataChanges.encoding
+				})
 				opts.reencode = true
 				return @parse(opts, next)
 
@@ -213,6 +235,11 @@ class DocumentModel extends FileModel
 			# Handle urls
 			@addUrl(metaDataChanges.urls)  if metaDataChanges.urls
 			@setUrl(metaDataChanges.url)   if metaDataChanges.url
+
+			# Check if the id was being over-written
+			if metaDataChanges.id?
+				@log 'warn', util.format(locale.documentIdChangeError, filePath)
+				delete metaDataChanges.id
 
 			# Apply meta data
 			@setMeta(metaDataChanges)
@@ -291,15 +318,16 @@ class DocumentModel extends FileModel
 		return @get('layout')?
 
 	# Get Layout
-	# The the layout object that this file references (if any)
-	# next(err,layout)
+	# The layout object that this file references (if any)
+	# We update the layoutRelativePath as it is used for finding what documents are used by a layout for when a layout changes
+	# next(err, layout)
 	getLayout: (next) ->
 		# Prepare
 		file = @
 		layoutSelector = @get('layout')
 
 		# Check
-		return next(null,null)  unless layoutSelector
+		return next(null, null)  unless layoutSelector
 
 		# Find parent
 		@emit 'getLayout', {selector:layoutSelector}, (err,opts) ->
@@ -308,21 +336,18 @@ class DocumentModel extends FileModel
 
 			# Error
 			if err
-				file.set('layoutId': null)
+				file.set('layoutRelativePath': null)
 				return next(err)
 
 			# Not Found
 			else unless layout
-				file.set('layoutId': null)
-				err = new Error("Could not find the specified layout: #{layoutSelector}")
-				return next(err)
+				file.set('layoutRelativePath': null)
+				return next()
 
 			# Found
 			else
-				file.set('layoutId': layout.id)
-				return next(null,layout)
-
-			# We update the layoutId as it is used for finding what documents are used by a layout for when a layout changes
+				file.set('layoutRelativePath': layout.get('relativePath'))
+				return next(null, layout)
 
 		# Chain
 		@
@@ -334,11 +359,13 @@ class DocumentModel extends FileModel
 		if @hasLayout()
 			@getLayout (err,layout) ->
 				if err
-					return next(err,null)
-				else
+					return next(err, null)
+				else if layout
 					layout.getEve(next)
+				else
+					next(null, null)
 		else
-			next(null,@)
+			next(null, @)
 		@
 
 
@@ -350,6 +377,7 @@ class DocumentModel extends FileModel
 	renderExtensions: (opts,next) ->
 		# Prepare
 		file = @
+		locale = @locale
 		[opts,next] = extractOptsAndCallback(opts, next)
 		{content,templateData,renderSingleExtensions} = opts
 		extensions = @get('extensions')
@@ -375,10 +403,10 @@ class DocumentModel extends FileModel
 				extensionsReversed.push(null)
 
 		# If we only have one extension, then skip ahead to rendering layouts
-		return next(null,result)  if extensionsReversed.length <= 1
+		return next(null, result)  if extensionsReversed.length <= 1
 
 		# Prepare the tasks
-		tasks = new TaskGroup "renderExtensions: #{filePath}", next: (err) ->
+		tasks = new TaskGroup "renderExtensions: #{filePath}", next:(err) ->
 			# Forward with result
 			return next(err, result)
 
@@ -406,8 +434,7 @@ class DocumentModel extends FileModel
 					# and only check if we actually have content to render!
 					# if this check fails, error with a suggestion
 					if result and (result is eventData.content)
-						message = "\n  Rendering the extension \"#{eventData.inExtension}\" to \"#{eventData.outExtension}\" on \"#{file.attributes.relativePath}\" didn't do anything.\n  Explanation here: http://docpad.org/extension-not-rendering"
-						file.log('warn', message)
+						file.log 'warn', util.format(locale.documentRenderExtensionNoChange, eventData.inExtension, eventData.outExtension, filePath)
 						return complete()
 
 					# The render did something, so apply and continue
@@ -449,17 +476,19 @@ class DocumentModel extends FileModel
 	renderLayouts: (opts,next) ->
 		# Prepare
 		file = @
+		locale = @locale
+		filePath = @getFilePath()
 		[opts,next] = extractOptsAndCallback(opts, next)
 		{content,templateData} = opts
 		content ?= @get('body')
 		templateData ?= {}
 
 		# Grab the layout
-		file.getLayout (err,layout) ->
+		file.getLayout (err, layout) ->
 			# Check
-			return next(err,content)  if err
+			return next(err, content)  if err
 
-			# Check if we have a layout
+			# We have a layout to render
 			if layout
 				# Assign the current rendering to the templateData.content
 				templateData.content = content
@@ -469,10 +498,15 @@ class DocumentModel extends FileModel
 				# templateData.document.metaMerged = extendr.extend({}, layout.getMeta().toJSON(), file.getMeta().toJSON())
 
 				# Render the layout with the templateData
-				layout.render {templateData,apply:false}, (err,result) ->
+				layout.clone().action 'render', {templateData}, (err,result) ->
 					return next(err, result)
 
-			# We don't have a layout, nothing to do here
+			# We had a layout, but it is missing
+			else if file.hasLayout()
+					err = new Error(util.format(locale.documentMissingLayoutError, layoutSelector, filePath))
+					return next(err, content)
+
+			# We never had a layout
 			else
 				return next(null, content)
 
@@ -482,16 +516,24 @@ class DocumentModel extends FileModel
 	# next(err,result,document)
 	render: (opts={},next) ->
 		# Prepare
-		file = @
 		[opts,next] = extractOptsAndCallback(opts, next)
-		opts = extendr.clone(opts or {})
-		opts.actions ?= ['renderExtensions','renderDocument','renderLayouts']
-		opts.apply ?= true
+		file = @
+		locale = @locale
+
+		# Prepare variables
 		contentRenderedWithoutLayouts = null
-		relativePath = @get('relativePath')
+		filePath = @getFilePath()
+		relativePath = file.get('relativePath')
+
+		# Options
+		opts = extendr.clone(opts or {})
+		opts.actions ?= ['renderExtensions', 'renderDocument', 'renderLayouts']
+		if opts.apply?
+			err = new Error(locale.documentApplyError)
+			return next(err)
 
 		# Prepare content
-		opts.content ?= @get('body')
+		opts.content ?= file.get('body')
 
 		# Prepare templateData
 		opts.templateData = extendr.clone(opts.templateData or {})  # deepClone may be more suitable
@@ -507,31 +549,34 @@ class DocumentModel extends FileModel
 		# file.set({contentRendered:null, contentRenderedWithoutLayouts:null, rendered:false})
 
 		# Log
-		file.log 'debug', "Rendering the file: #{relativePath}"
+		file.log 'debug', util.format(locale.documentRender, filePath)
 
 		# Prepare the tasks
-		tasks = new TaskGroup().once 'complete', (err) ->
+		tasks = new TaskGroup "render tasks for: #{relativePath}", next:(err) ->
 			# Error?
 			if err
-				file.log 'warn', "Something went wrong while rendering: #{relativePath}\n#{err.message or err}"
+				file.log 'warn', util.format(locale.documentRenderError, filePath)+' '+locale.errorFollows+' '+(err.stack or err.message)
 				return next(err, opts.content, file)
 
-			# Apply
-			if opts.apply is true
-				# Attributes
-				contentRendered = opts.content
-				contentRenderedWithoutLayouts ?= contentRendered
-				rendered = true
-				file.set({contentRendered, contentRenderedWithoutLayouts, rendered})
-
-				# Log
-				file.log 'debug', "Rendering applied to: #{relativePath}"
+			# Attributes
+			contentRendered = opts.content
+			contentRenderedWithoutLayouts ?= contentRendered
+			rendered = true
+			file.set({contentRendered, contentRenderedWithoutLayouts, rendered})
 
 			# Log
-			file.log 'debug', "Rendering completed for: #{relativePath}"
+			file.log 'debug', util.format(locale.documentRendered, filePath)
+
+			# Apply
+			file.attributes.rtime = new Date()
 
 			# Success
 			return next(null, opts.content, file)
+			# ^ do not use super here, even with =>
+			# as it causes layout rendering to fail
+			# the reasoning for this is that super uses the document's contentRendered
+			# where, with layouts, opts.apply is false
+			# so that isn't set
 
 		# Render Extensions Task
 		if 'renderExtensions' in opts.actions
@@ -592,12 +637,11 @@ class DocumentModel extends FileModel
 
 		# Fetch
 		opts.content ?= (@getContent() or '').toString('')
-		opts.cleanAttributes ?= false
 
 		# Adjust
 		CSON      = require('cson')  unless CSON
 		metaData  = @getMeta().toJSON(true)
-		delete metaData.writeSource  if opts.cleanAttributes is true or metaData.writeSource is 'once'
+		delete metaData.writeSource
 		content   = body = opts.content.replace(/^\s+/,'')
 		header    = CSON.stringifySync(metaData)
 		if !header or header is '{}'
@@ -621,5 +665,6 @@ class DocumentModel extends FileModel
 		@
 
 
+# =====================================
 # Export
 module.exports = DocumentModel

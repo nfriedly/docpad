@@ -1,6 +1,16 @@
-# Import
+# =====================================
+# Requires
+
+# Standard Library
 pathUtil = require('path')
 
+# External
+_ = require('lodash')
+{extractOptsAndCallback} = require('extract-opts')
+{TaskGroup} = require('taskgroup')
+
+
+# =====================================
 # Export
 module.exports = docpadUtil =
 	# Standard Encodings
@@ -80,3 +90,69 @@ module.exports = docpadUtil =
 	# get slug
 	getSlug: (relativeBase) ->
 		return require('bal-util').generateSlugSync(relativeBase)
+
+	# Perform an action
+	# next(err,...), ... = any special arguments from the action
+	# this should be it's own npm module
+	# as we also use the concept of actions in a few other packages
+	action: (action,opts,next) ->
+		# Prepare
+		[opts,next] = extractOptsAndCallback(opts,next)
+		me = @
+		run = opts.run ? true
+		runner = opts.runner ? me.getActionRunner()
+
+		# Array?
+		if Array.isArray(action)
+			actions = action
+		else
+			actions = action.split(/[,\s]+/g)
+
+		# Clean actions
+		actions = _.uniq _.compact actions
+
+		# Next
+		next ?= (err) =>
+			@emit('error', err)  if err
+
+		# Multiple actions?
+		if actions.length is 0
+			err = new Error('No action was given')
+			next(err)
+
+		else if actions.length > 1
+			group = runner.createGroup 'actions bundle: '+actions.join(' ')
+
+			for action in actions
+				# Fetch
+				actionMethod = me[action].bind(me)
+
+				# Task
+				task = group.createTask(action, actionMethod, {args: [opts]})
+				group.addTask(task)
+
+			# Run
+			runner.addGroup(group, {next})
+			runner.run()  if run is true
+
+		else
+			# Fetch the action
+			action = actions[0]
+
+			# Fetch
+			actionMethod = me[action].bind(me)
+
+			# Check
+			unless actionMethod
+				err = new Error(util.format(locale.actionNonexistant, action))
+				return next(err)
+
+			# Task
+			task = runner.createTask(action, actionMethod, {args: [opts], next})
+
+			# Run
+			runner.addTask(task)
+			runner.run()  if run is true
+
+		# Chain
+		me
